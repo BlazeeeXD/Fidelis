@@ -1,0 +1,57 @@
+{
+  "action": "opened",
+  "number": 42,
+  "pull_request": {
+    "id": 123456789,
+    "number": 42,
+    "title": "Add rate limiting to auth endpoint",
+    "state": "open",
+    "draft": false,
+    "user": { "login": "octocat", "id": 1 },
+    "body": "Adds a token-bucket limiter in front of /login",
+    "head": {
+      "ref": "feature/rate-limit",
+      "sha": "abc123def456",
+      "repo": {
+        "id": 1,
+        "name": "pr-reviewer-demo",
+        "full_name": "octo-org/pr-reviewer-demo",
+        "private": false,
+        "default_branch": "main",
+        "html_url": "https://github.com/octo-org/pr-reviewer-demo",
+        "clone_url": "https://github.com/octo-org/pr-reviewer-demo.git"
+      }
+    },
+    "base": {
+      "ref": "main",
+      "sha": "def456abc123",
+      "repo": {
+        "id": 1,
+        "name": "pr-reviewer-demo",
+        "full_name": "octo-org/pr-reviewer-demo",
+        "private": false,
+        "default_branch": "main",
+        "html_url": "https://github.com/octo-org/pr-reviewer-demo",
+        "clone_url": "https://github.com/octo-org/pr-reviewer-demo.git"
+      }
+    },
+    "html_url": "https://github.com/octo-org/pr-reviewer-demo/pull/42",
+    "diff_url": "https://github.com/octo-org/pr-reviewer-demo/pull/42.diff",
+    "patch_url": "https://github.com/octo-org/pr-reviewer-demo/pull/42.patch",
+    "commits": 3,
+    "additions": 120,
+    "deletions": 14,
+    "changed_files": 5,
+    "merged": false
+  },
+  "repository": {
+    "id": 1,
+    "name": "pr-reviewer-demo",
+    "full_name": "octo-org/pr-reviewer-demo",
+    "private": false,
+    "default_branch": "main",
+    "html_url": "https://github.com/octo-org/pr-reviewer-demo",
+    "clone_url": "https://github.com/octo-org/pr-reviewer-demo.git"
+  },
+  "sender": { "login": "octocat", "id": 1 }
+}
