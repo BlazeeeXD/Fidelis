@@ -1,34 +1,127 @@
-version: "3.9"
-
 services:
+  # ---------------------------------------------------------------------------
+  # Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fidelis_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fidelis_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-pr_reviewer}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - fidelis_net
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_USER:-fidelis_user}", "-d", "${POSTGRES_DB:-pr_reviewer}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Orchestrator — job lifecycle management
+  # ---------------------------------------------------------------------------
   orchestrator:
     build: ./services/orchestrator
     ports:
       - "8001:8000"
     environment:
-      - ENV=development
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fidelis_user}:${POSTGRES_PASSWORD:-fidelis_dev_password}@postgres:5432/${POSTGRES_DB:-pr_reviewer}
+      ENV: ${ENV:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fidelis_net
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  # webhook:
-  #   build: ./services/webhook
-  #   ports:
-  #     - "8002:8000"
+  # ---------------------------------------------------------------------------
+  # Reviewer — AI code review (placeholder; P1 replaces this in Week 2+)
+  # ---------------------------------------------------------------------------
+  reviewer:
+    build: ./services/reviewer
+    ports:
+      - "8003:8000"
+    networks:
+      - fidelis_net
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/healthz')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  # gateway:
-  #   build: ./services/gateway
-  #   ports:
-  #     - "8000:8000"
+  # ---------------------------------------------------------------------------
+  # Webhook — GitHub webhook receiver
+  # ---------------------------------------------------------------------------
+  webhook:
+    build: ./services/webhook
+    ports:
+      - "8002:8000"
+    environment:
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-dev_webhook_secret_change_me}
+      ENV: ${ENV:-development}
+    networks:
+      - fidelis_net
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/healthz')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
-  # reviewer:
-  #   build: ./services/reviewer
-
+  # ---------------------------------------------------------------------------
+  # Gateway — single external entry point; JWT auth & routing
+  # ---------------------------------------------------------------------------
+  gateway:
+    build: ./services/gateway
+    ports:
+      - "8000:8000"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_me}
+      JWT_EXPIRY_MINUTES: ${JWT_EXPIRY_MINUTES:-60}
+      WEBHOOK_SERVICE_URL: http://webhook:8000
+      ORCHESTRATOR_SERVICE_URL: http://orchestrator:8000
+      ENV: ${ENV:-development}
+    depends_on:
+      webhook:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    networks:
+      - fidelis_net
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/healthz')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  # ---------------------------------------------------------------------------
+  # Learner — arrives in Week 8; kept out of compose for now
+  # ---------------------------------------------------------------------------
   # learner:
   #   build: ./services/learner
+  #   # TODO Week 8: wire up learner service
 
-  # postgres:
-  #   image: postgres:16
-  #   environment:
-  #     - POSTGRES_USER=user
-  #     - POSTGRES_PASSWORD=pass
-  #     - POSTGRES_DB=pr_reviewer
-  #   ports:
-  #     - "5432:5432"
+  # ---------------------------------------------------------------------------
+  # Named volumes & networks
+  # ---------------------------------------------------------------------------
+volumes:
+  postgres_data:
+
+networks:
+  fidelis_net:
+    driver: bridge
