@@ -9,8 +9,8 @@ parsing when GitHub adds new ones.
 """
 
 from __future__ import annotations
-from typing import Optional
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel
 
 
 class GitHubUser(BaseModel):
@@ -31,7 +31,7 @@ class GitHubRepository(BaseModel):
 class GitHubBranchRef(BaseModel):
     ref: str
     sha: str
-    repo: Optional[GitHubRepository] = None
+    repo: GitHubRepository | None = None
 
 
 class GitHubPullRequest(BaseModel):
@@ -41,7 +41,7 @@ class GitHubPullRequest(BaseModel):
     state: str  # "open" | "closed"
     draft: bool = False
     user: GitHubUser
-    body: Optional[str] = None
+    body: str | None = None
     head: GitHubBranchRef
     base: GitHubBranchRef
     html_url: str
@@ -64,7 +64,7 @@ class PullRequestWebhookEvent(BaseModel):
     pull_request: GitHubPullRequest
     repository: GitHubRepository
     sender: GitHubUser
-    installation: Optional[dict] = None  # present for GitHub App installs
+    installation: dict | None = None  # present for GitHub App installs
 
 
 # Actions that should actually trigger a review job.

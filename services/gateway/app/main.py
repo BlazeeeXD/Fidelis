@@ -19,12 +19,16 @@ Run locally:
 """
 
 import os
+
 import httpx
-from fastapi import FastAPI, Request, Depends, Response
-from .auth import require_auth, create_access_token
+from fastapi import Depends, FastAPI, Request, Response
+
+from .auth import create_access_token, require_auth
 
 WEBHOOK_SERVICE_URL = os.environ.get("WEBHOOK_SERVICE_URL", "http://localhost:8001")
-ORCHESTRATOR_SERVICE_URL = os.environ.get("ORCHESTRATOR_SERVICE_URL", "http://localhost:8002")
+ORCHESTRATOR_SERVICE_URL = os.environ.get(
+    "ORCHESTRATOR_SERVICE_URL", "http://localhost:8002"
+)
 
 app = FastAPI(title="PR Reviewer - Gateway Service")
 
@@ -56,8 +60,12 @@ async def route_to_webhook_service(path: str, request: Request):
     return await _proxy(request, f"{WEBHOOK_SERVICE_URL}/webhook/{path}")
 
 
-@app.api_route("/api/orchestrator/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
-async def route_to_orchestrator(path: str, request: Request, _claims: dict = Depends(require_auth)):
+@app.api_route(
+    "/api/orchestrator/{path:path}", methods=["GET", "POST", "PUT", "DELETE"]
+)
+async def route_to_orchestrator(
+    path: str, request: Request, _claims: dict = Depends(require_auth)  # noqa: B008
+):
     """
     Authenticated passthrough to the Orchestrator Service, e.g. for a
     dashboard to query job status or trigger a manual re-review.
@@ -70,7 +78,9 @@ async def _proxy(request: Request, target_url: str) -> Response:
     upstream_response = await _http_client.request(
         method=request.method,
         url=target_url,
-        headers={k: v for k, v in request.headers.items() if k.lower() != "host"},
+        headers={
+            k: v for k, v in request.headers.items() if k.lower() != "host"
+        },
         content=body,
         params=request.query_params,
     )
@@ -78,7 +88,8 @@ async def _proxy(request: Request, target_url: str) -> Response:
         content=upstream_response.content,
         status_code=upstream_response.status_code,
         headers={
-            k: v for k, v in upstream_response.headers.items()
+            k: v
+            for k, v in upstream_response.headers.items()
             if k.lower() not in ("content-length", "transfer-encoding", "connection")
         },
     )

@@ -4,7 +4,6 @@ Week 1 uses a dict. Week 2+ swaps this for P4's Postgres-backed
 repository without changing the API layer, since callers only depend
 on this module's function signatures.
 """
-from typing import Dict, Optional
 
 from app.models.job import ReviewJob
 
@@ -15,7 +14,7 @@ class JobNotFoundError(Exception):
 
 class OrchestratorService:
     def __init__(self) -> None:
-        self._jobs: Dict[str, ReviewJob] = {}
+        self._jobs: dict[str, ReviewJob] = {}
 
     def create_job(self, repository: str, pr_number: int, commit_sha: str) -> ReviewJob:
         job = ReviewJob(repository=repository, pr_number=pr_number, commit_sha=commit_sha)

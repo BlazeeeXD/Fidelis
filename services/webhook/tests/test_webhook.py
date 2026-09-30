@@ -12,12 +12,11 @@ import json
 import os
 from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
 
 os.environ["GITHUB_WEBHOOK_SECRET"] = "testsecret"
 
-from app.main import app  # noqa: E402  (env var must be set first)
+from app.main import app
 
 client = TestClient(app)
 SAMPLE = (Path(__file__).parent / "sample_payloads" / "pull_request_opened.json").read_bytes()

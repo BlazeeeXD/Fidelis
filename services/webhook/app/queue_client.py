@@ -16,6 +16,7 @@ code in main.py doesn't need to change later.
 """
 
 import logging
+
 from .schemas import ReviewJobMessage
 
 logger = logging.getLogger("webhook.queue_client")
