@@ -64,7 +64,7 @@ async def route_to_webhook_service(path: str, request: Request):
     "/api/orchestrator/{path:path}", methods=["GET", "POST", "PUT", "DELETE"]
 )
 async def route_to_orchestrator(
-    path: str, request: Request, _claims: dict = Depends(require_auth)
+    path: str, request: Request, _claims: dict = Depends(require_auth)  # noqa: B008
 ):
     """
     Authenticated passthrough to the Orchestrator Service, e.g. for a

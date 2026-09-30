@@ -14,12 +14,13 @@ Run locally:
 import logging
 import os
 import uuid
-from fastapi import FastAPI, Request, HTTPException, Header
+
+from fastapi import FastAPI, Header, HTTPException, Request
 from pydantic import ValidationError
 
-from .schemas import PullRequestWebhookEvent, ReviewJobMessage, REVIEW_TRIGGER_ACTIONS
-from .security import verify_github_signature, InvalidSignatureError
 from .queue_client import enqueue_review_job
+from .schemas import REVIEW_TRIGGER_ACTIONS, PullRequestWebhookEvent, ReviewJobMessage
+from .security import InvalidSignatureError, verify_github_signature
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("webhook.main")

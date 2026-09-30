@@ -10,8 +10,8 @@ We MUST verify this before trusting the payload, otherwise anyone who
 finds the endpoint URL could forge PR events.
 """
 
-import hmac
 import hashlib
+import hmac
 
 
 class InvalidSignatureError(Exception):

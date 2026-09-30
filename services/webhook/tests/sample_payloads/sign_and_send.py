@@ -10,11 +10,10 @@ Usage:
 import argparse
 import hashlib
 import hmac
-import json
 import os
+import urllib.request
 import uuid
 from pathlib import Path
-import urllib.request
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--url", default="http://localhost:8000/webhook/github")

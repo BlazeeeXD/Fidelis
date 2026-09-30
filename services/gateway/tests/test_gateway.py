@@ -4,9 +4,8 @@ Minimal gateway tests for CI.
 Run from inside services/gateway/:
     pytest tests/test_gateway.py
 """
-from fastapi.testclient import TestClient
-
 from app.main import app
+from fastapi.testclient import TestClient
 
 client = TestClient(app)
 

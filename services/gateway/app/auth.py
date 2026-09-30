@@ -10,11 +10,10 @@ separately downstream by the Webhook Service's HMAC signature check
 
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import jwt  # PyJWT
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 JWT_SECRET = os.environ.get("JWT_SECRET", "change-me-in-env")
 JWT_ALGORITHM = "HS256"
@@ -23,7 +22,7 @@ JWT_EXPIRY_MINUTES = int(os.environ.get("JWT_EXPIRY_MINUTES", "60"))
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def create_access_token(subject: str, extra_claims: Optional[dict] = None) -> str:
+def create_access_token(subject: str, extra_claims: dict | None = None) -> str:
     now = datetime.now(timezone.utc)
     payload = {
         "sub": subject,
@@ -44,7 +43,7 @@ def decode_access_token(token: str) -> dict:
 
 
 async def require_auth(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),  # noqa: B008 — FastAPI dependency injection pattern
 ) -> dict:
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
