@@ -9,7 +9,7 @@ separately downstream by the Webhook Service's HMAC signature check
 """
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt  # PyJWT
 from fastapi import Depends, HTTPException, status
@@ -23,7 +23,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def create_access_token(subject: str, extra_claims: dict | None = None) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": subject,
         "iat": now,
