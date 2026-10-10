@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 
@@ -27,7 +27,7 @@ class ReviewJob:
     commit_sha: str
     id: str = field(default_factory=lambda: str(uuid4()))
     status: JobStatus = JobStatus.QUEUED
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     started_at: datetime | None = None
     completed_at: datetime | None = None
     error_message: str | None = None

@@ -1,13 +1,12 @@
 import pytest
+from app.db import models  # noqa: F401
+from app.db.database import Base
+from app.main import app
+from app.services.orchestrator import orchestrator_service
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-
-from app.db.database import Base
-from app.db import models
-from app.main import app
-from app.services.orchestrator import orchestrator_service
 
 
 @pytest.fixture(autouse=True)

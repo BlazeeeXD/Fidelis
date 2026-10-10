@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api import jobs
-from app.db import models  # Register ORM models with SQLAlchemy metadata
+from app.db import models  # noqa: F401
 from app.db.database import Base, engine
 
 
