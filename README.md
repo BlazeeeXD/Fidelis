@@ -99,7 +99,16 @@ reviewer after changing it): `multi_agent` (default), `single_bug`, `clean`,
 `fail_retryable`, `fail_permanent`, `timeout`, `flaky`. The failure scenarios
 exist so retry / FAILED-job handling can be tested without a real outage.
 
+To see a whole job lifecycle (`QUEUED -> RUNNING -> retry -> COMPLETED`/`FAILED`)
+without Redis, Celery or a database, run the mock execution:
+
+```bash
+cd services/reviewer
+python -m app.worker.demo --scenario flaky     # fails twice, then succeeds
+```
+
 - Contract (request, result, errors, versioning): [`docs/contracts/reviewer-contract.md`](docs/contracts/reviewer-contract.md)
+- Worker interface (how a Celery task runs a job and reports status): [`docs/contracts/review-worker-interface.md`](docs/contracts/review-worker-interface.md)
 - Machine-readable schemas and example payloads: `docs/contracts/schemas/`, `docs/contracts/examples/`
 
 ## Troubleshooting
