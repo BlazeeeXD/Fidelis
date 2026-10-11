@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
 
@@ -37,13 +37,13 @@ def create_job(payload: JobCreateRequest, response: Response) -> JobCreateRespon
     return JobCreateResponse(job_id=job.id, status=job.status, duplicate=not created)
 
 
-@router.get("", response_model=List[JobDetailResponse])
+@router.get("", response_model=list[JobDetailResponse])
 def list_jobs(
-    repository: Optional[str] = None,
-    pr_number: Optional[int] = None,
-    status_filter: Optional[JobStatus] = Query(None, alias="status"),
-    limit: int = Query(50, ge=1, le=200),
-) -> List[JobDetailResponse]:
+    repository: str | None = None,
+    pr_number: int | None = None,
+    status_filter: Annotated[JobStatus | None, Query(alias="status")] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[JobDetailResponse]:
     jobs = orchestrator_service.list_jobs(repository, pr_number, status_filter, limit)
     return [_to_detail(j) for j in jobs]
 

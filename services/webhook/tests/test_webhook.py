@@ -15,9 +15,9 @@ from fastapi.testclient import TestClient
 
 os.environ["GITHUB_WEBHOOK_SECRET"] = "testsecret"
 
-from app import main as webhook_main  # noqa: E402
-from app.main import app  # noqa: E402
-from app.orchestrator_client import (  # noqa: E402
+from app import main as webhook_main
+from app.main import app
+from app.orchestrator_client import (
     OrchestratorError,
     OrchestratorRejectedError,
 )

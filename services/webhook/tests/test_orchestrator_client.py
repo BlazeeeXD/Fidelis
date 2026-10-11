@@ -3,7 +3,6 @@ import json
 
 import httpx
 import pytest
-
 from app.orchestrator_client import (
     OrchestratorClient,
     OrchestratorError,

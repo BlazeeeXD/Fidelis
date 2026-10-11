@@ -1,6 +1,6 @@
 """Pydantic request/response schemas for the Orchestrator API."""
+
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -16,7 +16,7 @@ class JobCreateRequest(BaseModel):
 class JobCreateResponse(BaseModel):
     job_id: str
     status: JobStatus
-    duplicate: bool = False  # True if an existing job was returned
+    duplicate: bool = False  # True when an existing job was returned
 
 
 class JobDetailResponse(BaseModel):
@@ -26,6 +26,6 @@ class JobDetailResponse(BaseModel):
     commit_sha: str
     status: JobStatus
     created_at: datetime
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    error_message: Optional[str] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    error_message: str | None = None

@@ -11,7 +11,7 @@ answer GitHub (with a 502 it can redeliver) instead of silently timing out.
 import asyncio
 import logging
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 import httpx
 
@@ -29,11 +29,11 @@ class OrchestratorRejectedError(OrchestratorError):
 class OrchestratorClient:
     def __init__(
         self,
-        base_url: Optional[str] = None,
+        base_url: str | None = None,
         timeout: float = 2.5,
         max_retries: int = 2,
         backoff: float = 0.25,
-        transport: Optional[httpx.AsyncBaseTransport] = None,
+        transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self.base_url = (
             base_url or os.getenv("ORCHESTRATOR_URL", "http://orchestrator:8000")
@@ -45,7 +45,7 @@ class OrchestratorClient:
 
     async def create_job(
         self, repository: str, pr_number: int, commit_sha: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         payload = {
             "repository": repository,
             "pr_number": pr_number,
