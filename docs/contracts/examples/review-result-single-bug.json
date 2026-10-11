@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "job_id": "5f0d3c1e-8a52-4a8e-9b8e-3c9a6d1f2b77",
+  "repository": "acme/payments-api",
+  "pr_number": 42,
+  "commit_sha": "9fceb02d0ae598e95dc970b74767f19372d61af8",
+  "reviewer": {
+    "name": "fidelis-mock-reviewer",
+    "version": "1.0.0",
+    "mode": "MOCK"
+  },
+  "agents_run": [
+    "GENERAL"
+  ],
+  "findings": [
+    {
+      "id": "ef12033b-d500-5c69-8404-fb3d85994ca6",
+      "agent": "GENERAL",
+      "severity": "HIGH",
+      "category": "BUG",
+      "file": "foo.py",
+      "line": 42,
+      "end_line": null,
+      "message": "Mock finding: `items[0]` is read before checking that `items` is non-empty, which raises IndexError for an empty list.",
+      "suggestion": "Check `if not items:` and return early (or raise a clear error).",
+      "confidence": 0.9
+    }
+  ],
+  "summary": {
+    "total_findings": 1,
+    "by_severity": {
+      "HIGH": 1,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "by_category": {
+      "BUG": 1,
+      "SECURITY": 0,
+      "ARCHITECTURE": 0,
+      "MAINTAINABILITY": 0,
+      "STYLE": 0
+    },
+    "by_agent": {
+      "STATIC_ANALYSIS": 0,
+      "SECURITY": 0,
+      "ARCHITECTURE": 0,
+      "CODE_STYLE": 0,
+      "GENERAL": 1
+    },
+    "highest_severity": "HIGH"
+  },
+  "started_at": "2026-01-15T12:00:00Z",
+  "completed_at": "2026-01-15T12:00:00.250000Z",
+  "duration_ms": 250
+}

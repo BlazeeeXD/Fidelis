@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.0",
+  "job_id": "5f0d3c1e-8a52-4a8e-9b8e-3c9a6d1f2b77",
+  "repository": "acme/payments-api",
+  "pr_number": 42,
+  "commit_sha": "9fceb02d0ae598e95dc970b74767f19372d61af8",
+  "reviewer": {
+    "name": "fidelis-mock-reviewer",
+    "version": "1.0.0",
+    "mode": "MOCK"
+  },
+  "agents_run": [
+    "STATIC_ANALYSIS",
+    "SECURITY",
+    "ARCHITECTURE",
+    "CODE_STYLE"
+  ],
+  "findings": [
+    {
+      "id": "f9c8bf23-9d2c-53da-a907-41b962efa283",
+      "agent": "SECURITY",
+      "severity": "HIGH",
+      "category": "SECURITY",
+      "file": "app/db/queries.py",
+      "line": 88,
+      "end_line": null,
+      "message": "Mock finding: the SQL query is built with string formatting from request input, which allows SQL injection.",
+      "suggestion": "Use a parameterized query and pass the values separately.",
+      "confidence": 0.95
+    },
+    {
+      "id": "ef12033b-d500-5c69-8404-fb3d85994ca6",
+      "agent": "STATIC_ANALYSIS",
+      "severity": "HIGH",
+      "category": "BUG",
+      "file": "app/services/users.py",
+      "line": 42,
+      "end_line": null,
+      "message": "Mock finding: `user` can be None when the lookup misses, but `user.id` is accessed without a check.",
+      "suggestion": "Guard with `if user is None:` and raise a clear error or return 404.",
+      "confidence": 0.9
+    },
+    {
+      "id": "9e625a9d-d67b-5f1e-acba-57c55a8c700e",
+      "agent": "SECURITY",
+      "severity": "MEDIUM",
+      "category": "SECURITY",
+      "file": "app/config.py",
+      "line": 5,
+      "end_line": null,
+      "message": "Mock finding: a value that looks like a hard-coded credential is committed in source.",
+      "suggestion": "Read the secret from the environment or a secrets manager.",
+      "confidence": 0.8
+    },
+    {
+      "id": "7844e255-7d84-5746-b379-8490a030f030",
+      "agent": "ARCHITECTURE",
+      "severity": "MEDIUM",
+      "category": "ARCHITECTURE",
+      "file": null,
+      "line": null,
+      "end_line": null,
+      "message": "Mock finding: route handlers query the database directly; consider moving data access behind the service layer to keep layers separable.",
+      "suggestion": null,
+      "confidence": 0.6
+    },
+    {
+      "id": "26a90224-8a71-5daa-aa6b-5746f824ccd9",
+      "agent": "CODE_STYLE",
+      "severity": "LOW",
+      "category": "STYLE",
+      "file": "app/services/users.py",
+      "line": 40,
+      "end_line": null,
+      "message": "Mock finding: `getUser` does not follow the repository's snake_case naming convention.",
+      "suggestion": "Rename to `get_user`.",
+      "confidence": 0.85
+    },
+    {
+      "id": "c18a09f2-b972-5834-a781-2a2374e78a93",
+      "agent": "STATIC_ANALYSIS",
+      "severity": "LOW",
+      "category": "MAINTAINABILITY",
+      "file": "app/utils.py",
+      "line": 17,
+      "end_line": 24,
+      "message": "Mock finding: this block duplicates logic in `format_name()`; extract a shared helper to keep the two in sync.",
+      "suggestion": "Move the shared logic into one function and call it from both places.",
+      "confidence": 0.7
+    }
+  ],
+  "summary": {
+    "total_findings": 6,
+    "by_severity": {
+      "HIGH": 2,
+      "MEDIUM": 2,
+      "LOW": 2
+    },
+    "by_category": {
+      "BUG": 1,
+      "SECURITY": 2,
+      "ARCHITECTURE": 1,
+      "MAINTAINABILITY": 1,
+      "STYLE": 1
+    },
+    "by_agent": {
+      "STATIC_ANALYSIS": 2,
+      "SECURITY": 2,
+      "ARCHITECTURE": 1,
+      "CODE_STYLE": 1,
+      "GENERAL": 0
+    },
+    "highest_severity": "HIGH"
+  },
+  "started_at": "2026-01-15T12:00:00Z",
+  "completed_at": "2026-01-15T12:00:00.250000Z",
+  "duration_ms": 250
+}

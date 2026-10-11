@@ -53,3 +53,7 @@ Suggested guard against duplicate jobs from concurrent requests across processes
 a unique partial index on review_jobs (repository, pr_number, commit_sha)
 WHERE status != 'FAILED'. The orchestrator already handles the resulting
 IntegrityError. Not needed for single-process dev; I did not touch models.py.
+
+## Orchestrator / worker → Reviewer
+See [`reviewer-contract.md`](reviewer-contract.md) for the request and result of
+`POST /review`.

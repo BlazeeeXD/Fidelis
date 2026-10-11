@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "job_id": "5f0d3c1e-8a52-4a8e-9b8e-3c9a6d1f2b77",
+  "repository": "acme/payments-api",
+  "pr_number": 42,
+  "commit_sha": "9fceb02d0ae598e95dc970b74767f19372d61af8",
+  "diff": null
+}

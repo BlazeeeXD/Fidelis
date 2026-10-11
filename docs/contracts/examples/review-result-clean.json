@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "job_id": "5f0d3c1e-8a52-4a8e-9b8e-3c9a6d1f2b77",
+  "repository": "acme/payments-api",
+  "pr_number": 42,
+  "commit_sha": "9fceb02d0ae598e95dc970b74767f19372d61af8",
+  "reviewer": {
+    "name": "fidelis-mock-reviewer",
+    "version": "1.0.0",
+    "mode": "MOCK"
+  },
+  "agents_run": [
+    "GENERAL"
+  ],
+  "findings": [],
+  "summary": {
+    "total_findings": 0,
+    "by_severity": {
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "by_category": {
+      "BUG": 0,
+      "SECURITY": 0,
+      "ARCHITECTURE": 0,
+      "MAINTAINABILITY": 0,
+      "STYLE": 0
+    },
+    "by_agent": {
+      "STATIC_ANALYSIS": 0,
+      "SECURITY": 0,
+      "ARCHITECTURE": 0,
+      "CODE_STYLE": 0,
+      "GENERAL": 0
+    },
+    "highest_severity": null
+  },
+  "started_at": "2026-01-15T12:00:00Z",
+  "completed_at": "2026-01-15T12:00:00.250000Z",
+  "duration_ms": 250
+}
