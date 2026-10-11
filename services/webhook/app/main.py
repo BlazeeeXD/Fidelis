@@ -5,10 +5,10 @@ Responsibilities (per synopsis Section 3):
   - Receive GitHub webhook events
   - Validate authenticity via HMAC signature verification
   - Extract PR / repository details
-  - Hand off a normalized review job to the async pipeline
+  - Hand off a review job to the Orchestrator, which owns job lifecycle
 
-Run locally:
-    uvicorn webhook.main:app --reload --port 8001
+Run locally (from services/webhook/):
+    uvicorn app.main:app --reload --port 8002
 """
 
 import logging
@@ -18,7 +18,11 @@ import uuid
 from fastapi import FastAPI, Header, HTTPException, Request
 from pydantic import ValidationError
 
-from .queue_client import enqueue_review_job
+from .orchestrator_client import (
+    OrchestratorClient,
+    OrchestratorError,
+    OrchestratorRejectedError,
+)
 from .schemas import REVIEW_TRIGGER_ACTIONS, PullRequestWebhookEvent, ReviewJobMessage
 from .security import InvalidSignatureError, verify_github_signature
 
@@ -29,10 +33,13 @@ GITHUB_WEBHOOK_SECRET = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
 
 app = FastAPI(title="PR Reviewer - Webhook Service")
 
+orchestrator = OrchestratorClient()
+
 # In-memory de-dupe of GitHub delivery IDs for this demo/skeleton.
 # GitHub retries deliveries on timeout, so without this a slow
 # response could cause the same PR to be queued twice.
-# Replace with a Redis SETNX check once Redis is wired up (Weeks 5-6).
+# (The orchestrator is also idempotent per repo/PR/commit, so this is a
+# first line of defence, not the only one.)
 _seen_delivery_ids: set[str] = set()
 
 
@@ -86,7 +93,7 @@ async def github_webhook(
     if payload.action not in REVIEW_TRIGGER_ACTIONS:
         return {"status": "ignored", "action": payload.action}
 
-    # 6. Normalize and enqueue.
+    # 6. Normalize and hand off to the Orchestrator.
     job = ReviewJobMessage(
         event_id=delivery_id,
         action=payload.action,
@@ -99,6 +106,31 @@ async def github_webhook(
         html_url=payload.pull_request.html_url,
         author_login=payload.pull_request.user.login,
     )
-    enqueue_review_job(job)
 
-    return {"status": "queued", "pr": job.pr_number, "repo": job.repo_full_name}
+    try:
+        result = await orchestrator.create_job(
+            repository=job.repo_full_name,
+            pr_number=job.pr_number,
+            commit_sha=job.head_sha,
+        )
+    except OrchestratorRejectedError:
+        logger.exception(
+            "Orchestrator rejected job for %s#%s", job.repo_full_name, job.pr_number
+        )
+        _seen_delivery_ids.discard(delivery_id)
+        raise HTTPException(status_code=500, detail="Failed to create review job")
+    except OrchestratorError:
+        logger.exception(
+            "Orchestrator unavailable for %s#%s", job.repo_full_name, job.pr_number
+        )
+        # Un-mark this delivery so a GitHub redelivery isn't dropped as a duplicate.
+        _seen_delivery_ids.discard(delivery_id)
+        raise HTTPException(status_code=502, detail="Orchestrator unavailable")
+
+    return {
+        "status": "queued",
+        "pr": job.pr_number,
+        "repo": job.repo_full_name,
+        "job_id": result["job_id"],
+        "duplicate": result.get("duplicate", False),
+    }
