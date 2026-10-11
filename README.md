@@ -35,7 +35,7 @@ Every container listens on port **8000 internally**; host ports differ:
 | gateway      | 8000      | http://localhost:8000/healthz             | JWT auth, entry point for all traffic  |
 | orchestrator | 8001      | http://localhost:8001/health              | Review job lifecycle (`/health` is fixed by the contract) |
 | webhook      | 8002      | http://localhost:8002/healthz             | GitHub webhook receiver (HMAC-verified) |
-| reviewer     | 8003      | http://localhost:8003/healthz             | Placeholder app, replaced by the real reviewer in Week 2+ |
+| reviewer     | 8003      | http://localhost:8003/healthz             | Mock AI reviewer (`POST /review`); real LangGraph reviewer in Week 4 — see [reviewer contract](docs/contracts/reviewer-contract.md) |
 | postgres     | 5432      | —                                         | `pg_isready` healthcheck               |
 
 `services/learner` is intentionally **not** in compose — it arrives in Week 8.
@@ -59,6 +59,7 @@ Then run pytest **from inside each service directory**:
 cd services/orchestrator && pytest
 cd services/webhook      && pytest   # test file sets GITHUB_WEBHOOK_SECRET itself
 cd services/gateway      && pytest
+cd services/reviewer     && pytest
 ```
 
 Lint (advisory for now): `ruff check services/`
@@ -74,11 +75,32 @@ python scripts/smoke_test.py
 
 Standard library only. It checks all four health endpoints, mints a JWT via
 `POST /auth/dev-token`, creates and fetches a review job through the gateway,
-and delivers a signed GitHub `pull_request` payload — printing PASS/FAIL per
-step and exiting non-zero on any failure.
+delivers a signed GitHub `pull_request` payload, and requests a mock review from
+the reviewer service — printing PASS/FAIL per step and exiting non-zero on any
+failure.
 
 CI (`.github/workflows/ci.yml`) runs the per-service tests, ruff, and this
 smoke test against a freshly built compose stack on every PR.
+
+## Reviewer service
+
+The reviewer takes a PR commit and returns structured findings (severity,
+category, file, line, message, ...). Right now it is a deterministic **mock**;
+the request/response contract is final and the real reviewer will plug in behind
+it, so everyone can build against it today.
+
+```bash
+curl -s localhost:8003/review -H 'Content-Type: application/json' \
+  -d '{"job_id":"j1","repository":"owner/repo","pr_number":1,"commit_sha":"abc123"}'
+```
+
+Mock behaviour is chosen with `REVIEWER_MOCK_SCENARIO` in `.env` (restart the
+reviewer after changing it): `multi_agent` (default), `single_bug`, `clean`,
+`fail_retryable`, `fail_permanent`, `timeout`, `flaky`. The failure scenarios
+exist so retry / FAILED-job handling can be tested without a real outage.
+
+- Contract (request, result, errors, versioning): [`docs/contracts/reviewer-contract.md`](docs/contracts/reviewer-contract.md)
+- Machine-readable schemas and example payloads: `docs/contracts/schemas/`, `docs/contracts/examples/`
 
 ## Troubleshooting
 

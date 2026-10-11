@@ -13,6 +13,8 @@ Steps:
   b) POST gateway /auth/dev-token to mint a JWT.
   c) Create a review job through the gateway, then read it back.
   d) Deliver a signed GitHub pull_request payload through the gateway.
+  e) Request a mock review straight from the reviewer service (it is an
+     internal service, so it is reached on its host port, not via the gateway).
 
 Prints PASS/FAIL per step and exits non-zero if anything failed.
 """
@@ -35,6 +37,8 @@ HEALTH_ENDPOINTS = [
     ("webhook /healthz", "http://localhost:8002/healthz"),
     ("reviewer /healthz", "http://localhost:8003/healthz"),
 ]
+
+REVIEWER_URL = "http://localhost:8003"
 
 SAMPLE_PAYLOAD = (
     ROOT / "services" / "webhook" / "tests" / "sample_payloads" / "pull_request_opened.json"
@@ -201,6 +205,44 @@ def step_webhook() -> None:
     )
 
 
+def step_reviewer() -> None:
+    """The reviewer must answer POST /review with a contract-shaped result."""
+    payload = {
+        "job_id": "smoke-test-job",
+        "repository": "test/repo",
+        "pr_number": 1,
+        "commit_sha": "abc123",
+    }
+    status, body, err = http("POST", f"{REVIEWER_URL}/review", body=payload)
+    label = "POST reviewer /review"
+    if err:
+        report(False, label, err)
+        return
+    if status != 200 or not isinstance(body, dict):
+        report(False, label, f"HTTP {status} (expected 200), body={json.dumps(body)}")
+        return
+
+    findings = body.get("findings")
+    summary = body.get("summary") or {}
+    problems = []
+    if body.get("job_id") != payload["job_id"]:
+        problems.append("job_id does not echo the request")
+    if not isinstance(findings, list):
+        problems.append("findings is not a list")
+    elif summary.get("total_findings") != len(findings):
+        problems.append("summary.total_findings != len(findings)")
+    for finding in findings if isinstance(findings, list) else []:
+        missing = {"severity", "category", "file", "line", "message"} - set(finding)
+        if missing:
+            problems.append(f"finding missing {sorted(missing)}")
+            break
+    report(
+        not problems,
+        label,
+        f"HTTP 200, {len(findings or [])} finding(s)" if not problems else "; ".join(problems),
+    )
+
+
 def main() -> int:
     print("Fidelis smoke test - stack must already be running (docker compose up -d --wait)")
     print("-" * 78)
@@ -219,6 +261,9 @@ def main() -> int:
 
     print("d) Signed GitHub webhook event via gateway")
     step_webhook()
+
+    print("e) Mock review from the reviewer service")
+    step_reviewer()
 
     print("-" * 78)
     if FAILURES:
