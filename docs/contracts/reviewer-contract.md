@@ -8,7 +8,8 @@ LangGraph reviewer from Week 4, so everything built against it keeps working.
 
 It extends [`review-job-contract.md`](review-job-contract.md) (webhook →
 orchestrator → database). The Celery worker side — how a worker runs one review
-and reports job status — is specified in `review-worker-interface.md` (added in Week 3).
+and reports job status — is specified in
+[`review-worker-interface.md`](review-worker-interface.md).
 
 ```
 GitHub PR ──▶ Webhook ──▶ Orchestrator ──▶ Redis ──▶ Celery worker ──▶ Reviewer Service
@@ -190,7 +191,8 @@ worker does the other half when it builds a `ReviewRequest` from a job row:
   pass in `diff` — agree which with P1.
 * **P3 (queue/worker):** call `POST /review` with the request above, apply the
   retry rule in section 5, and report job state (`QUEUED` → `RUNNING` →
-  `COMPLETED`/`FAILED`) as specified in `review-worker-interface.md` (Week 3).
+  `COMPLETED`/`FAILED`) as specified in
+  [`review-worker-interface.md`](review-worker-interface.md).
   `POST /jobs` is idempotent on `(repository, pr_number, commit_sha)`, so a webhook
   redelivery returns the *same* `job_id`; a result is always tied to that `job_id`,
   and a new commit on the PR (or a retry after `FAILED`) gets a new one.

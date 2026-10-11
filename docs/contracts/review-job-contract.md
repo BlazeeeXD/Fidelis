@@ -56,4 +56,5 @@ IntegrityError. Not needed for single-process dev; I did not touch models.py.
 
 ## Orchestrator / worker → Reviewer
 See [`reviewer-contract.md`](reviewer-contract.md) for the request and result of
-`POST /review`.
+`POST /review`, and [`review-worker-interface.md`](review-worker-interface.md) for
+how a worker executes a job and reports `QUEUED`/`RUNNING`/`COMPLETED`/`FAILED`.
