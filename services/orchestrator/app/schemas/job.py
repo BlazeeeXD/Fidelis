@@ -1,4 +1,5 @@
 """Pydantic request/response schemas for the Orchestrator API."""
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -7,14 +8,15 @@ from app.models.job import JobStatus
 
 
 class JobCreateRequest(BaseModel):
-    repository: str = Field(..., examples=["owner/repo"])
+    repository: str = Field(..., pattern=r"^[\w.-]+/[\w.-]+$", examples=["owner/repo"])
     pr_number: int = Field(..., gt=0)
-    commit_sha: str = Field(..., min_length=1)
+    commit_sha: str = Field(..., min_length=1, max_length=64)
 
 
 class JobCreateResponse(BaseModel):
     job_id: str
     status: JobStatus
+    duplicate: bool = False  # True when an existing job was returned
 
 
 class JobDetailResponse(BaseModel):
