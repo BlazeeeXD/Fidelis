@@ -13,7 +13,7 @@ workflow itself was added by P5 in Week 1 / V0.
 
 ### `tests`
 
-Matrix over `orchestrator`, `webhook`, `gateway` on Python 3.12 with pip
+Matrix over `orchestrator`, `webhook`, `gateway`, `reviewer` on Python 3.12 with pip
 caching (keyed on each service's `requirements.txt` + `requirements-dev.txt`).
 
 For each service:
@@ -40,7 +40,8 @@ End-to-end check that `docker compose up` actually works:
 2. `docker compose up -d --build --wait` (waits for all healthchecks)
 3. `python scripts/smoke_test.py` (stdlib only): health endpoints on
    :8000-:8003, `POST /auth/dev-token`, create + fetch a review job through
-   the gateway, and a signed GitHub `pull_request` webhook delivery
+   the gateway, a signed GitHub `pull_request` webhook delivery, and a mock
+   review from the reviewer service (`POST :8003/review`)
 4. `docker compose logs` if anything failed (`if: failure()`)
 5. `docker compose down -v` always (`if: always()`)
 
@@ -48,7 +49,7 @@ End-to-end check that `docker compose up` actually works:
 
 ```bash
 pip install -r services/<svc>/requirements.txt -r requirements-dev.txt
-cd services/<svc> && pytest        # orchestrator | webhook | gateway
+cd services/<svc> && pytest        # orchestrator | webhook | gateway | reviewer
 
 ruff check services/               # advisory lint
 

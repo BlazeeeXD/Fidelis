@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [orchestrator, webhook, gateway]
+        service: [orchestrator, webhook, gateway, reviewer]
     steps:
       - uses: actions/checkout@v4
 

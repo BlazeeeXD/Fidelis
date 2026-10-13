@@ -46,12 +46,20 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
-  # Reviewer — AI code review (placeholder; P1 replaces this in Week 2+)
+  # Reviewer — returns structured review findings for a PR commit.
+  # Runs the deterministic mock reviewer for now; the real LangGraph reviewer
+  # replaces it in Week 4 behind the same POST /review contract.
+  # See docs/contracts/reviewer-contract.md and the REVIEWER_* vars in .env.example.
   # ---------------------------------------------------------------------------
   reviewer:
     build: ./services/reviewer
     ports:
       - "8003:8000"
+    environment:
+      REVIEWER_MODE: ${REVIEWER_MODE:-mock}
+      REVIEWER_MOCK_SCENARIO: ${REVIEWER_MOCK_SCENARIO:-multi_agent}
+      REVIEWER_MOCK_DELAY_MS: ${REVIEWER_MOCK_DELAY_MS:-0}
+      REVIEWER_MOCK_FLAKY_FAILURES: ${REVIEWER_MOCK_FLAKY_FAILURES:-2}
     networks:
       - fidelis_net
     restart: unless-stopped

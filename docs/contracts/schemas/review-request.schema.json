@@ -1,0 +1,62 @@
+{
+  "additionalProperties": false,
+  "description": "Ask the reviewer to review one PR at one commit.\n\n``repository``, ``pr_number`` and ``commit_sha`` are the same fields the\norchestrator already stores on a review job (see\n``docs/contracts/review-job-contract.md``); ``job_id`` ties the result back\nto that job. ``diff`` is optional: when omitted the real reviewer fetches\nthe diff from GitHub itself (Week 4); when supplied it is used as-is, which\nkeeps tests and mock runs independent of the network.",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "enum": [
+        "1.0"
+      ],
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "job_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Job Id",
+      "type": "string"
+    },
+    "repository": {
+      "examples": [
+        "owner/repo"
+      ],
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+      "title": "Repository",
+      "type": "string"
+    },
+    "pr_number": {
+      "exclusiveMinimum": 0,
+      "title": "Pr Number",
+      "type": "integer"
+    },
+    "commit_sha": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Commit Sha",
+      "type": "string"
+    },
+    "diff": {
+      "anyOf": [
+        {
+          "maxLength": 2000000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Unified diff of the PR. Optional; fetched from GitHub if absent.",
+      "title": "Diff"
+    }
+  },
+  "required": [
+    "job_id",
+    "repository",
+    "pr_number",
+    "commit_sha"
+  ],
+  "title": "ReviewRequest",
+  "type": "object"
+}

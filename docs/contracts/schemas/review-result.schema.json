@@ -1,0 +1,312 @@
+{
+  "$defs": {
+    "Category": {
+      "description": "What kind of problem a finding describes.\n\nCovers the concerns listed in the project synopsis: bugs/runtime issues,\nsecurity vulnerabilities, architectural decisions, duplication and\nmaintainability, and style/convention violations.",
+      "enum": [
+        "BUG",
+        "SECURITY",
+        "ARCHITECTURE",
+        "MAINTAINABILITY",
+        "STYLE"
+      ],
+      "title": "Category",
+      "type": "string"
+    },
+    "Finding": {
+      "additionalProperties": false,
+      "description": "A single, actionable review comment.\n\nThe core five fields from the project plan are ``severity``, ``category``,\n``file``, ``line`` and ``message``; the rest make findings traceable\n(``id``, ``agent``) and actionable (``suggestion``, ``end_line``) and let\nthe aggregator weigh them (``confidence``).\n\n``file`` and ``line`` are optional because some findings are PR-level\n(e.g. an architecture concern spanning many files). Rules enforced:\n``line`` needs ``file``; ``end_line`` needs ``line`` and must not precede it.",
+      "properties": {
+        "id": {
+          "description": "Unique id of this finding (stable across re-serialisation).",
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "agent": {
+          "$ref": "#/$defs/ReviewAgent"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "category": {
+          "$ref": "#/$defs/Category"
+        },
+        "file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Repo-relative path using '/' separators; null for PR-level findings.",
+          "examples": [
+            "src/app/auth.py"
+          ],
+          "title": "File"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "1-based line in the new version of the file.",
+          "title": "Line"
+        },
+        "end_line": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Last line of a multi-line finding (inclusive).",
+          "title": "End Line"
+        },
+        "message": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "suggestion": {
+          "anyOf": [
+            {
+              "maxLength": 4000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Concrete fix, if one is known.",
+          "title": "Suggestion"
+        },
+        "confidence": {
+          "default": 1.0,
+          "description": "Agent's confidence, 0.0\u20131.0.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "agent",
+        "severity",
+        "category",
+        "message"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "ReviewAgent": {
+      "description": "Which agent produced a finding.\n\nThe four specialised agents come from the synopsis. ``GENERAL`` is the\nsingle all-purpose reviewer used in the V3 milestone (one AI reviewer)\nbefore the multi-agent split lands.",
+      "enum": [
+        "STATIC_ANALYSIS",
+        "SECURITY",
+        "ARCHITECTURE",
+        "CODE_STYLE",
+        "GENERAL"
+      ],
+      "title": "ReviewAgent",
+      "type": "string"
+    },
+    "ReviewSummary": {
+      "additionalProperties": false,
+      "description": "Counts derived from ``findings``; always consistent with them.\n\nEvery enum value appears as a key (with ``0`` when absent) so consumers \u2014\nthe dashboard metrics in particular \u2014 never need to handle missing keys.",
+      "properties": {
+        "total_findings": {
+          "minimum": 0,
+          "title": "Total Findings",
+          "type": "integer"
+        },
+        "by_severity": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "By Severity",
+          "type": "object"
+        },
+        "by_category": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "By Category",
+          "type": "object"
+        },
+        "by_agent": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "By Agent",
+          "type": "object"
+        },
+        "highest_severity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Severity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Most severe finding present; null when there are no findings."
+        }
+      },
+      "required": [
+        "total_findings",
+        "by_severity",
+        "by_category",
+        "by_agent",
+        "highest_severity"
+      ],
+      "title": "ReviewSummary",
+      "type": "object"
+    },
+    "ReviewerInfo": {
+      "additionalProperties": false,
+      "description": "Identifies which reviewer implementation produced a result.",
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/ReviewerMode"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "mode"
+      ],
+      "title": "ReviewerInfo",
+      "type": "object"
+    },
+    "ReviewerMode": {
+      "description": "Whether results come from the canned mock or a real LLM pipeline.",
+      "enum": [
+        "MOCK",
+        "LLM"
+      ],
+      "title": "ReviewerMode",
+      "type": "string"
+    },
+    "Severity": {
+      "description": "How urgently a developer should act. Ordered HIGH > MEDIUM > LOW.",
+      "enum": [
+        "HIGH",
+        "MEDIUM",
+        "LOW"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The complete, prioritized review for one PR commit.\n\nBuild instances with :meth:`create` \u2014 it sorts findings by priority and\ncomputes ``summary`` and ``duration_ms`` so they cannot disagree with the\ndata. Parsing validates that they do agree, so a hand-edited or corrupted\npayload is rejected rather than trusted.",
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "enum": [
+        "1.0"
+      ],
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "job_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Job Id",
+      "type": "string"
+    },
+    "repository": {
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+      "title": "Repository",
+      "type": "string"
+    },
+    "pr_number": {
+      "exclusiveMinimum": 0,
+      "title": "Pr Number",
+      "type": "integer"
+    },
+    "commit_sha": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Commit Sha",
+      "type": "string"
+    },
+    "reviewer": {
+      "$ref": "#/$defs/ReviewerInfo"
+    },
+    "agents_run": {
+      "description": "Agents that actually ran for this review, in execution order.",
+      "items": {
+        "$ref": "#/$defs/ReviewAgent"
+      },
+      "title": "Agents Run",
+      "type": "array"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "summary": {
+      "$ref": "#/$defs/ReviewSummary"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "completed_at": {
+      "format": "date-time",
+      "title": "Completed At",
+      "type": "string"
+    },
+    "duration_ms": {
+      "minimum": 0,
+      "title": "Duration Ms",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "job_id",
+    "repository",
+    "pr_number",
+    "commit_sha",
+    "reviewer",
+    "agents_run",
+    "findings",
+    "summary",
+    "started_at",
+    "completed_at",
+    "duration_ms"
+  ],
+  "title": "ReviewResult",
+  "type": "object"
+}
