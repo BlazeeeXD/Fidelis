@@ -12,7 +12,8 @@ Steps:
   a) GET each service's health endpoint on its host port.
   b) POST gateway /auth/dev-token to mint a JWT.
   c) Create a review job through the gateway, then read it back.
-  d) Deliver a signed GitHub pull_request payload through the gateway.
+  d) Deliver a signed GitHub pull_request payload through the gateway, then
+     read the job back from the orchestrator (webhook → job path).
   e) Request a mock review straight from the reviewer service (it is an
      internal service, so it is reached on its host port, not via the gateway).
 
@@ -31,6 +32,7 @@ from urllib import error, request
 ROOT = Path(__file__).resolve().parent.parent
 
 GATEWAY_URL = "http://localhost:8000"
+ORCHESTRATOR_URL = "http://localhost:8001"
 HEALTH_ENDPOINTS = [
     ("gateway /healthz", "http://localhost:8000/healthz"),
     ("orchestrator /health", "http://localhost:8001/health"),
@@ -179,8 +181,19 @@ def step_jobs(token: str) -> None:
     )
 
 
+def _expected_fields_from_sample(raw: bytes) -> dict:
+    payload = json.loads(raw)
+    pr = payload["pull_request"]
+    return {
+        "repository": payload["repository"]["full_name"],
+        "pr_number": pr["number"],
+        "commit_sha": pr["head"]["sha"],
+    }
+
+
 def step_webhook() -> None:
     raw = SAMPLE_PAYLOAD.read_bytes()
+    expected = _expected_fields_from_sample(raw)
     secret = webhook_secret()
     signature = "sha256=" + hmac.new(secret.encode("utf-8"), raw, hashlib.sha256).hexdigest()
     status, body, err = http(
@@ -202,6 +215,36 @@ def step_webhook() -> None:
         ok,
         "POST /webhook/github (signed pull_request)",
         f"HTTP {status} (expected 200), status={(body or {}).get('status')!r} (expected 'queued')",
+    )
+    if not ok:
+        return
+
+    job_id = (body or {}).get("job_id")
+    if not job_id:
+        report(False, "webhook → orchestrator job persistence", "missing job_id in webhook response")
+        return
+
+    job_status, job_body, job_err = http("GET", f"{ORCHESTRATOR_URL}/jobs/{job_id}")
+    if job_err:
+        report(False, "GET orchestrator /jobs/{job_id} (after webhook)", job_err)
+        return
+    problems = []
+    if job_status != 200:
+        problems.append(f"HTTP {job_status} (expected 200)")
+    if (job_body or {}).get("job_id") != job_id:
+        problems.append("job_id mismatch")
+    if (job_body or {}).get("status") != "QUEUED":
+        problems.append(f"status={(job_body or {}).get('status')!r} (expected 'QUEUED')")
+    if (job_body or {}).get("repository") != expected["repository"]:
+        problems.append("repository mismatch vs sample payload")
+    if (job_body or {}).get("pr_number") != expected["pr_number"]:
+        problems.append("pr_number mismatch vs sample payload")
+    if (job_body or {}).get("commit_sha") != expected["commit_sha"]:
+        problems.append("commit_sha mismatch vs sample payload")
+    report(
+        not problems,
+        "webhook → orchestrator job persistence",
+        "fields match sample payload" if not problems else "; ".join(problems),
     )
 
 
