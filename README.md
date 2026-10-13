@@ -62,6 +62,21 @@ cd services/gateway      && pytest
 cd services/reviewer     && pytest
 ```
 
+### Integration tests (webhook → job)
+
+These hit a **running** compose stack on host ports and assert a signed GitHub
+`pull_request` delivery creates a `QUEUED` job in Postgres via the orchestrator
+(gateway path, direct webhook path, delivery dedupe, orchestrator idempotency):
+
+```bash
+docker compose up -d --build --wait
+pytest tests/integration -v
+```
+
+If the stack is down, tests are skipped automatically. See
+[`docs/docker-network-debugging.md`](docs/docker-network-debugging.md) for
+502/401/HMAC issues and internal vs host URLs.
+
 Lint (advisory for now): `ruff check services/`
 
 ## Smoke test
@@ -124,3 +139,6 @@ python -m app.worker.demo --scenario flaky     # fails twice, then succeeds
   ```
 
 - **Any service failing to start**: `docker compose logs <service>`.
+- **Webhook 502 / job not created / HMAC 401** — run
+  `python scripts/debug_compose_network.py` and see
+  [`docs/docker-network-debugging.md`](docs/docker-network-debugging.md).
