@@ -40,10 +40,13 @@ End-to-end check that `docker compose up` actually works:
 2. `docker compose up -d --build --wait` (waits for all healthchecks)
 3. `python scripts/smoke_test.py` (stdlib only): health endpoints on
    :8000-:8003, `POST /auth/dev-token`, create + fetch a review job through
-   the gateway, a signed GitHub `pull_request` webhook delivery, and a mock
-   review from the reviewer service (`POST :8003/review`)
-4. `docker compose logs` if anything failed (`if: failure()`)
-5. `docker compose down -v` always (`if: always()`)
+   the gateway, a signed GitHub `pull_request` webhook delivery **with
+   orchestrator job verification**, and a mock review from the reviewer
+   service (`POST :8003/review`)
+4. `pytest tests/integration -v` — httpx-based webhook → orchestrator → job
+   path (gateway, direct webhook, dedupe, idempotency)
+5. `docker compose logs` if anything failed (`if: failure()`)
+6. `docker compose down -v` always (`if: always()`)
 
 ## Running the same checks locally
 
@@ -56,5 +59,7 @@ ruff check services/               # advisory lint
 cp .env.example .env
 docker compose up -d --build --wait
 python scripts/smoke_test.py
+pip install -r requirements-dev.txt && pytest tests/integration -v
+python scripts/debug_compose_network.py   # optional network diagnostics
 docker compose down -v
 ```
