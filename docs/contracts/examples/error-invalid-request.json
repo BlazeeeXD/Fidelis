@@ -1,0 +1,19 @@
+{
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "Request body does not match the review contract.",
+    "retryable": false,
+    "details": {
+      "errors": [
+        {
+          "loc": [
+            "body",
+            "pr_number"
+          ],
+          "msg": "Input should be greater than 0",
+          "type": "greater_than"
+        }
+      ]
+    }
+  }
+}

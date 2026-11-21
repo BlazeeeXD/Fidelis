@@ -11,8 +11,11 @@ Standard library only. Run it against a *running* stack:
 Steps:
   a) GET each service's health endpoint on its host port.
   b) POST gateway /auth/dev-token to mint a JWT.
-  c) Create a review job through the gateway, then read it back.
-  d) Deliver a signed GitHub pull_request payload through the gateway.
+  c) In mock mode only, create synthetic jobs and exercise the signed webhook.
+     Synthetic jobs are skipped in LLM mode because their fake repository/PR
+     cannot be fetched from GitHub.
+  d) Check the reviewer contract in mock mode, or /info in LLM mode. This
+     smoke test never spends model tokens.
 
 Prints PASS/FAIL per step and exits non-zero if anything failed.
 """
@@ -29,12 +32,16 @@ from urllib import error, request
 ROOT = Path(__file__).resolve().parent.parent
 
 GATEWAY_URL = "http://localhost:8000"
+ORCHESTRATOR_URL = "http://localhost:8001"
 HEALTH_ENDPOINTS = [
     ("gateway /healthz", "http://localhost:8000/healthz"),
     ("orchestrator /health", "http://localhost:8001/health"),
     ("webhook /healthz", "http://localhost:8002/healthz"),
     ("reviewer /healthz", "http://localhost:8003/healthz"),
+    ("learner /healthz", "http://localhost:8004/healthz"),
 ]
+
+REVIEWER_URL = "http://localhost:8003"
 
 SAMPLE_PAYLOAD = (
     ROOT / "services" / "webhook" / "tests" / "sample_payloads" / "pull_request_opened.json"
@@ -52,6 +59,23 @@ def report(ok: bool, label: str, detail: str = "") -> None:
     print(line)
     if not ok:
         FAILURES += 1
+
+
+def report_skip(label: str, detail: str = "") -> None:
+    line = f"[SKIP] {label}"
+    if detail:
+        line += f" - {detail}"
+    print(line)
+
+
+def reviewer_mode() -> str:
+    if os.environ.get("REVIEWER_MODE"):
+        return os.environ["REVIEWER_MODE"].strip().lower()
+    for name in (".env", ".env.example"):
+        value = parse_env_file(ROOT / name).get("REVIEWER_MODE")
+        if value:
+            return value.strip().lower()
+    return "mock"
 
 
 def http(method: str, url: str, body=None, headers=None, timeout: float = 10.0):
@@ -139,7 +163,12 @@ def step_dev_token() -> str | None:
 
 
 def step_jobs(token: str) -> None:
-    payload = {"repository": "test/repo", "pr_number": 1, "commit_sha": "abc123"}
+    if reviewer_mode() == "llm":
+        report_skip("synthetic job round-trip", "LLM mode is enabled; test jobs use non-existent repositories and are intentionally not queued")
+        return
+    # Use a fresh commit identity so repeated smoke runs do not reuse a prior
+    # completed job and unexpectedly return HTTP 200 instead of 201.
+    payload = {"repository": "test/repo", "pr_number": 1, "commit_sha": uuid.uuid4().hex}
     status, body, err = http(
         "POST",
         f"{GATEWAY_URL}/api/orchestrator/jobs",
@@ -153,7 +182,7 @@ def step_jobs(token: str) -> None:
     report(
         ok,
         "POST /api/orchestrator/jobs",
-        f"HTTP {status} (expected 201), status={(body or {}).get('status')!r} (expected 'QUEUED')",
+        f"HTTP {status} (expected 201), newly accepted job status={(body or {}).get('status')!r}",
     )
     if not ok:
         return
@@ -167,16 +196,36 @@ def step_jobs(token: str) -> None:
     if err:
         report(False, "GET /api/orchestrator/jobs/{job_id}", err)
         return
-    ok = status == 200 and (detail or {}).get("job_id") == job_id
+    observed_state = (detail or {}).get("status")
+    valid_states = {"QUEUED", "RUNNING", "COMPLETED", "FAILED"}
+    ok = (
+        status == 200
+        and (detail or {}).get("job_id") == job_id
+        and observed_state in valid_states
+    )
     report(
         ok,
         "GET /api/orchestrator/jobs/{job_id}",
-        f"HTTP {status} (expected 200), job_id={'matches' if (detail or {}).get('job_id') == job_id else 'mismatch'}",
+        f"HTTP {status}, job_id={'matches' if (detail or {}).get('job_id') == job_id else 'mismatch'}, state={observed_state!r}",
     )
 
 
+def _expected_fields_from_sample(raw: bytes) -> dict:
+    payload = json.loads(raw)
+    pr = payload["pull_request"]
+    return {
+        "repository": payload["repository"]["full_name"],
+        "pr_number": pr["number"],
+        "commit_sha": pr["head"]["sha"],
+    }
+
+
 def step_webhook() -> None:
+    if reviewer_mode() == "llm":
+        report_skip("synthetic GitHub webhook", "LLM mode requires a real accessible PR; use mock mode to test the synthetic webhook fixture")
+        return
     raw = SAMPLE_PAYLOAD.read_bytes()
+    expected = _expected_fields_from_sample(raw)
     secret = webhook_secret()
     signature = "sha256=" + hmac.new(secret.encode("utf-8"), raw, hashlib.sha256).hexdigest()
     status, body, err = http(
@@ -199,6 +248,81 @@ def step_webhook() -> None:
         "POST /webhook/github (signed pull_request)",
         f"HTTP {status} (expected 200), status={(body or {}).get('status')!r} (expected 'queued')",
     )
+    if not ok:
+        return
+
+    job_id = (body or {}).get("job_id")
+    if not job_id:
+        report(False, "webhook → orchestrator job persistence", "missing job_id in webhook response")
+        return
+
+    job_status, job_body, job_err = http("GET", f"{ORCHESTRATOR_URL}/jobs/{job_id}")
+    if job_err:
+        report(False, "GET orchestrator /jobs/{job_id} (after webhook)", job_err)
+        return
+    problems = []
+    if job_status != 200:
+        problems.append(f"HTTP {job_status} (expected 200)")
+    if (job_body or {}).get("job_id") != job_id:
+        problems.append("job_id mismatch")
+    observed_state = (job_body or {}).get("status")
+    if observed_state not in {"QUEUED", "RUNNING", "COMPLETED", "FAILED"}:
+        problems.append(f"unexpected job lifecycle state={observed_state!r}")
+    if (job_body or {}).get("repository") != expected["repository"]:
+        problems.append("repository mismatch vs sample payload")
+    if (job_body or {}).get("pr_number") != expected["pr_number"]:
+        problems.append("pr_number mismatch vs sample payload")
+    if (job_body or {}).get("commit_sha") != expected["commit_sha"]:
+        problems.append("commit_sha mismatch vs sample payload")
+    report(
+        not problems,
+        "webhook → orchestrator job persistence",
+        "fields match sample payload" if not problems else "; ".join(problems),
+    )
+
+
+def step_reviewer() -> None:
+    """Check mode-specific Reviewer availability without making an LLM call."""
+    if reviewer_mode() == "llm":
+        status, body, err = http("GET", f"{REVIEWER_URL}/info")
+        ok = not err and status == 200 and (body or {}).get("mode") == "LLM"
+        report(ok, "GET reviewer /info", f"HTTP {status}, configured mode={(body or {}).get('mode')!r}; no model inference was triggered")
+        return
+    payload = {
+        "schema_version": "1.3",
+        "job_id": "smoke-test-job",
+        "repository": "test/repo",
+        "pr_number": 1,
+        "commit_sha": "abc123",
+    }
+    status, body, err = http("POST", f"{REVIEWER_URL}/review", body=payload)
+    label = "POST reviewer /review (mock)"
+    if err:
+        report(False, label, err)
+        return
+    if status != 200 or not isinstance(body, dict):
+        report(False, label, f"HTTP {status} (expected 200), body={json.dumps(body)}")
+        return
+
+    findings = body.get("findings")
+    summary = body.get("summary") or {}
+    problems = []
+    if body.get("job_id") != payload["job_id"]:
+        problems.append("job_id does not echo the request")
+    if not isinstance(findings, list):
+        problems.append("findings is not a list")
+    elif summary.get("total_findings") != len(findings):
+        problems.append("summary.total_findings != len(findings)")
+    for finding in findings if isinstance(findings, list) else []:
+        missing = {"severity", "category", "file", "line", "message"} - set(finding)
+        if missing:
+            problems.append(f"finding missing {sorted(missing)}")
+            break
+    report(
+        not problems,
+        label,
+        f"HTTP 200, {len(findings or [])} finding(s)" if not problems else "; ".join(problems),
+    )
 
 
 def main() -> int:
@@ -219,6 +343,9 @@ def main() -> int:
 
     print("d) Signed GitHub webhook event via gateway")
     step_webhook()
+
+    print(f"e) Reviewer availability check ({reviewer_mode()} mode)")
+    step_reviewer()
 
     print("-" * 78)
     if FAILURES:

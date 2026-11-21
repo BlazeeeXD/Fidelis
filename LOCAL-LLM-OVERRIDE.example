@@ -1,0 +1,25 @@
+# Merge these settings into your existing .env. Do not replace the full file.
+# Keep your existing DB, JWT, webhook and worker secrets intact.
+REVIEWER_MODE=llm
+REVIEW_AGENTS=STATIC_ANALYSIS,SECURITY,ARCHITECTURE,CODE_STYLE
+REVIEW_EXECUTION_STRATEGY=sequential
+REVIEW_CHECKPOINTS_ENABLED=true
+LLM_BASE_URL=http://host.docker.internal:8080/v1
+LLM_API_KEY=
+LLM_MODEL=fidelis-deepseek14b
+LLM_TIMEOUT_SECONDS=300
+LLM_TEMPERATURE=0.1
+LLM_MAX_TOKENS=4096
+MAX_DIFF_CHARS=48000
+MAX_SOURCE_CONTEXT_CHARS=12000
+MAX_CONTEXT_FILES=6
+SOURCE_CONTEXT_LINES=12
+REVIEWER_TIMEOUT_SECONDS=1400
+REVIEW_WORKER_CONCURRENCY=1
+PUBLISH_GITHUB_REVIEWS=true
+# Token permissions:
+# - Pull requests: Read (fetch PR diffs)
+# - Contents: Read (retrieve surrounding source at the PR commit)
+# - Issues: Read and write (create/update the consolidated PR comment)
+GITHUB_TOKEN=replace-with-a-fine-grained-token
+GITHUB_API_URL=https://api.github.com

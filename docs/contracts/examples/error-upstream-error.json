@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "UPSTREAM_ERROR",
+    "message": "GitHub API returned 502 while fetching the PR diff.",
+    "retryable": true,
+    "details": null
+  }
+}

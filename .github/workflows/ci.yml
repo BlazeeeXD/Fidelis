@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [orchestrator, webhook, gateway]
+        service: [orchestrator, webhook, gateway, reviewer, learner]
     steps:
       - uses: actions/checkout@v4
 
@@ -81,6 +81,11 @@ jobs:
 
       - name: Run smoke test
         run: python scripts/smoke_test.py
+
+      - name: Run webhook → job integration tests
+        run: |
+          pip install -r requirements-dev.txt
+          pytest tests/integration -v
 
       - name: Dump logs on failure
         if: failure()

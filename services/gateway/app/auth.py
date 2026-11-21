@@ -15,7 +15,7 @@ import jwt  # PyJWT
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-JWT_SECRET = os.environ.get("JWT_SECRET", "change-me-in-env")
+JWT_SECRET = os.environ.get("JWT_SECRET", "dev_jwt_secret_change_me_replace_in_production")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_MINUTES = int(os.environ.get("JWT_EXPIRY_MINUTES", "60"))
 

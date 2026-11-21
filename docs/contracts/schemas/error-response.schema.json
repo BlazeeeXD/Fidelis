@@ -1,0 +1,67 @@
+{
+  "$defs": {
+    "ErrorCode": {
+      "description": "Closed set of machine-readable error codes.",
+      "enum": [
+        "INVALID_REQUEST",
+        "UPSTREAM_ERROR",
+        "REVIEW_TIMEOUT",
+        "REVIEWER_UNAVAILABLE",
+        "INTERNAL_ERROR",
+        "INVALID_RESPONSE"
+      ],
+      "title": "ErrorCode",
+      "type": "string"
+    },
+    "ErrorDetail": {
+      "additionalProperties": false,
+      "description": "What went wrong and whether a retry is worthwhile.",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "retryable": {
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional structured context (e.g. validation errors).",
+          "title": "Details"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "title": "ErrorDetail",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Body of every non-2xx reviewer response.",
+  "properties": {
+    "error": {
+      "$ref": "#/$defs/ErrorDetail"
+    }
+  },
+  "required": [
+    "error"
+  ],
+  "title": "ErrorResponse",
+  "type": "object"
+}

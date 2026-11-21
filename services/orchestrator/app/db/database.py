@@ -7,7 +7,7 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg://user:pass@localhost:5432/pr_reviewer",
+    "sqlite:///./fidelis.db",
 )
 
 

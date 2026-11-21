@@ -1,0 +1,23 @@
+{
+  "id": null,
+  "uid": "fidelis-overview",
+  "title": "Fidelis Review Operations",
+  "tags": ["fidelis", "pr-review"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "panels": [
+    {"id": 1, "type": "stat", "title": "Total review jobs", "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0}, "targets": [{"expr": "fidelis_review_jobs_total", "refId": "A"}]},
+    {"id": 2, "type": "stat", "title": "Queued", "gridPos": {"h": 5, "w": 6, "x": 6, "y": 0}, "targets": [{"expr": "fidelis_review_jobs_queued", "refId": "A"}]},
+    {"id": 3, "type": "stat", "title": "Running", "gridPos": {"h": 5, "w": 6, "x": 12, "y": 0}, "targets": [{"expr": "fidelis_review_jobs_running", "refId": "A"}]},
+    {"id": 4, "type": "stat", "title": "Failed", "gridPos": {"h": 5, "w": 6, "x": 18, "y": 0}, "targets": [{"expr": "fidelis_review_jobs_failed", "refId": "A"}]},
+    {"id": 5, "type": "timeseries", "title": "Jobs by state", "gridPos": {"h": 9, "w": 12, "x": 0, "y": 5}, "targets": [
+      {"expr": "fidelis_review_jobs_queued", "legendFormat": "queued", "refId": "A"},
+      {"expr": "fidelis_review_jobs_running", "legendFormat": "running", "refId": "B"},
+      {"expr": "fidelis_review_jobs_completed", "legendFormat": "completed", "refId": "C"},
+      {"expr": "fidelis_review_jobs_failed", "legendFormat": "failed", "refId": "D"}
+    ]},
+    {"id": 6, "type": "stat", "title": "Findings detected", "gridPos": {"h": 9, "w": 12, "x": 12, "y": 5}, "targets": [{"expr": "fidelis_review_findings_total", "refId": "A"}]}
+  ]
+}

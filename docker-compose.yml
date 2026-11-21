@@ -1,5 +1,22 @@
 services:
   # ---------------------------------------------------------------------------
+  # Redis — Celery broker/result backend
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - fidelis_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
   # Database
   # ---------------------------------------------------------------------------
   postgres:
@@ -31,9 +48,14 @@ services:
       - "8001:8000"
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fidelis_user}:${POSTGRES_PASSWORD:-fidelis_dev_password}@postgres:5432/${POSTGRES_DB:-pr_reviewer}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      ASYNC_REVIEW_ENABLED: ${ASYNC_REVIEW_ENABLED:-true}
+      WORKER_STATUS_TOKEN: ${WORKER_STATUS_TOKEN:-fidelis-dev-worker-token-change-me}
       ENV: ${ENV:-development}
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - fidelis_net
@@ -46,12 +68,46 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
-  # Reviewer — AI code review (placeholder; P1 replaces this in Week 2+)
+  # Reviewer — local-first specialist code review.
+  # Agent selection is independent from sequential/single-pass/parallel scheduling.
   # ---------------------------------------------------------------------------
   reviewer:
     build: ./services/reviewer
     ports:
       - "8003:8000"
+    environment:
+      REVIEWER_MODE: ${REVIEWER_MODE:-llm}
+      REVIEWER_MOCK_SCENARIO: ${REVIEWER_MOCK_SCENARIO:-multi_agent}
+      REVIEWER_MOCK_DELAY_MS: ${REVIEWER_MOCK_DELAY_MS:-0}
+      REVIEWER_MOCK_FLAKY_FAILURES: ${REVIEWER_MOCK_FLAKY_FAILURES:-2}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      REVIEWER_SERVICE_URL: http://reviewer:8000
+      REVIEW_MAX_ATTEMPTS: ${REVIEW_MAX_ATTEMPTS:-3}
+      REVIEWER_TIMEOUT_SECONDS: ${REVIEWER_TIMEOUT_SECONDS:-1400}
+      REVIEW_AGENTS: ${REVIEW_AGENTS:-STATIC_ANALYSIS,SECURITY,ARCHITECTURE,CODE_STYLE}
+      REVIEW_EXECUTION_STRATEGY: ${REVIEW_EXECUTION_STRATEGY:-sequential}
+      REVIEW_CHECKPOINTS_ENABLED: ${REVIEW_CHECKPOINTS_ENABLED:-true}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:8080/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-fidelis-deepseek14b}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-300}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.1}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-4096}
+      MAX_DIFF_CHARS: ${MAX_DIFF_CHARS:-48000}
+      MAX_SOURCE_CONTEXT_CHARS: ${MAX_SOURCE_CONTEXT_CHARS:-12000}
+      MAX_CONTEXT_FILES: ${MAX_CONTEXT_FILES:-6}
+      SOURCE_CONTEXT_LINES: ${SOURCE_CONTEXT_LINES:-12}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_API_URL: ${GITHUB_API_URL:-https://api.github.com}
+      ORCHESTRATOR_URL: http://orchestrator:8000
+      WORKER_STATUS_TOKEN: ${WORKER_STATUS_TOKEN:-fidelis-dev-worker-token-change-me}
+      LANGFUSE_ENABLED: ${LANGFUSE_ENABLED:-false}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-https://cloud.langfuse.com}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - fidelis_net
     restart: unless-stopped
@@ -61,6 +117,83 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Celery review worker — consumes jobs from Redis and calls Reviewer API
+  # Uses the same image/code as Reviewer, but runs a separate worker process.
+  # ---------------------------------------------------------------------------
+  review-worker:
+    build: ./services/reviewer
+    command: ["celery", "-A", "app.worker.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=${REVIEW_WORKER_CONCURRENCY:-1}", "--queues=review-jobs", "--hostname=review-worker@%h"]
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      REVIEWER_SERVICE_URL: http://reviewer:8000
+      ORCHESTRATOR_URL: http://orchestrator:8000
+      WORKER_STATUS_TOKEN: ${WORKER_STATUS_TOKEN:-fidelis-dev-worker-token-change-me}
+      REVIEW_MAX_ATTEMPTS: ${REVIEW_MAX_ATTEMPTS:-3}
+      REVIEWER_TIMEOUT_SECONDS: ${REVIEWER_TIMEOUT_SECONDS:-1400}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_API_URL: ${GITHUB_API_URL:-https://api.github.com}
+      PUBLISH_GITHUB_REVIEWS: ${PUBLISH_GITHUB_REVIEWS:-true}
+    depends_on:
+      redis:
+        condition: service_healthy
+      reviewer:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    networks:
+      - fidelis_net
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Learner — repository-specific convention extraction (V7)
+  # ---------------------------------------------------------------------------
+  learner:
+    build: ./services/learner
+    ports:
+      - "8004:8000"
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_API_URL: ${GITHUB_API_URL:-https://api.github.com}
+      ORCHESTRATOR_URL: http://orchestrator:8000
+      WORKER_STATUS_TOKEN: ${WORKER_STATUS_TOKEN:-fidelis-dev-worker-token-change-me}
+    depends_on:
+      redis:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    networks:
+      - fidelis_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  learning-worker:
+    build: ./services/learner
+    command: ["celery", "-A", "app.celery_app:celery_app", "worker", "--loglevel=INFO", "--concurrency=1", "--queues=learning-jobs", "--hostname=learning-worker@%h"]
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_API_URL: ${GITHUB_API_URL:-https://api.github.com}
+      ORCHESTRATOR_URL: http://orchestrator:8000
+      WORKER_STATUS_TOKEN: ${WORKER_STATUS_TOKEN:-fidelis-dev-worker-token-change-me}
+    depends_on:
+      redis:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    networks:
+      - fidelis_net
+    restart: unless-stopped
 
   # ---------------------------------------------------------------------------
   # Webhook — GitHub webhook receiver
@@ -98,11 +231,17 @@ services:
       JWT_EXPIRY_MINUTES: ${JWT_EXPIRY_MINUTES:-60}
       WEBHOOK_SERVICE_URL: http://webhook:8000
       ORCHESTRATOR_SERVICE_URL: http://orchestrator:8000
+      REVIEWER_SERVICE_URL: http://reviewer:8000
+      LEARNER_SERVICE_URL: http://learner:8000
+      WORKER_STATUS_TOKEN: ${WORKER_STATUS_TOKEN:-fidelis-dev-worker-token-change-me}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-dev_webhook_secret_change_me}
       ENV: ${ENV:-development}
     depends_on:
       webhook:
         condition: service_healthy
       orchestrator:
+        condition: service_healthy
+      learner:
         condition: service_healthy
     networks:
       - fidelis_net
@@ -114,17 +253,46 @@ services:
       retries: 5
       start_period: 10s
   # ---------------------------------------------------------------------------
-  # Learner — arrives in Week 8; kept out of compose for now
+  # Observability (Week 9 / V8)
   # ---------------------------------------------------------------------------
-  # learner:
-  #   build: ./services/learner
-  #   # TODO Week 8: wire up learner service
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    networks:
+      - fidelis_net
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - fidelis_net
+    restart: unless-stopped
 
   # ---------------------------------------------------------------------------
   # Named volumes & networks
   # ---------------------------------------------------------------------------
 volumes:
   postgres_data:
+  redis_data:
+  grafana_data:
 
 networks:
   fidelis_net:
