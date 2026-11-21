@@ -142,7 +142,14 @@ def test_duplicate_delivery_id_is_ignored():
 
 def test_orchestrator_idempotency_returns_same_job():
     """POST /jobs is idempotent on (repository, pr_number, commit_sha)."""
-    payload = {"repository": REPO, "pr_number": PR_NUMBER, "commit_sha": HEAD_SHA}
+    # Use a unique synthetic identity so the test is independent of jobs
+    # created by the preceding webhook integration cases or a reused stack.
+    unique_suffix = uuid.uuid4().hex
+    payload = {
+        "repository": f"fidelis-ci/idempotency-{unique_suffix}",
+        "pr_number": PR_NUMBER + 100_000,
+        "commit_sha": hashlib.sha1(unique_suffix.encode()).hexdigest(),
+    }
     first = httpx.post(f"{ORCHESTRATOR_URL}/jobs", json=payload, timeout=TIMEOUT)
     assert first.status_code in (200, 201), first.text
 

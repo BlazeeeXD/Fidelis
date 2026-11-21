@@ -79,7 +79,7 @@ def extract_rules(paths: list[str], patches: list[tuple[int, str]], source_prs: 
     total = len(paths)
     extensions = collections.Counter(path.rsplit(".", 1)[-1].lower() for path in paths if "." in path)
     directories = collections.Counter(path.split("/", 1)[0] for path in paths if "/" in path)
-    test_count = sum(bool(re.search(r"(^|/)(tests?|__tests__?)(/|$)|(^|/)test_[^/]+|\.(test|spec)\.[^.]+$", path, re.I)) for path in paths)
+    test_count = sum(bool(re.search(r"(^|/)(tests?|__tests__?)(/|$)|(^|/)test_[^/]+|\.(test|spec)\.[^.]+$", path, re.IGNORECASE)) for path in paths)
     rules: list[dict] = []
     if extensions:
         ext, count = extensions.most_common(1)[0]

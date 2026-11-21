@@ -2,7 +2,7 @@ import asyncio
 
 import httpx
 
-from app.github_reviews import GitHubReviewPublisher, _MARKER
+from app.github_reviews import _MARKER, GitHubReviewPublisher
 from app.reviewers.mock import MockReviewer, MockScenario
 from app.schemas import ReviewRequest
 

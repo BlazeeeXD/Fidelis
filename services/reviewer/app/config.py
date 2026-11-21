@@ -3,8 +3,8 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from app.schemas import ReviewAgent, ReviewerMode
 from app.reviewers.mock import MockScenario
+from app.schemas import ReviewAgent, ReviewerMode
 
 
 class ConfigError(ValueError):

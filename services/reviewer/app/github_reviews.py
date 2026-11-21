@@ -145,7 +145,7 @@ class GitHubReviewPublisher:
                 raise RuntimeError(f"GitHub comment listing returned HTTP {response.status_code}: {response.text[:500]}")
             comments = response.json()
             if not isinstance(comments, list):
-                raise RuntimeError("GitHub comments endpoint returned an unexpected response")
+                raise TypeError("GitHub comments endpoint returned an unexpected response")
             for comment in comments:
                 if isinstance(comment, dict) and _MARKER in str(comment.get("body", "")):
                     return comment

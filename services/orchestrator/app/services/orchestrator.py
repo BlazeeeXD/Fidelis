@@ -2,17 +2,23 @@
 
 import threading
 from datetime import UTC, datetime
+from uuid import uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.db.database import SessionLocal
 from app.db.models import (
-    RepositoryRuleDB, ReviewAgentRunDB, ReviewAuditDB, ReviewFindingDB, ReviewJobDB,
-    ReviewJobOutboxDB, ReviewResultDB, ReviewAgentCheckpointDB,
+    RepositoryRuleDB,
+    ReviewAgentCheckpointDB,
+    ReviewAgentRunDB,
+    ReviewAuditDB,
+    ReviewFindingDB,
+    ReviewJobDB,
+    ReviewJobOutboxDB,
+    ReviewResultDB,
 )
 from app.models.job import JobStatus, ReviewJob
-from uuid import uuid4
 
 
 class JobNotFoundError(Exception):
@@ -266,7 +272,7 @@ class OrchestratorService:
     def _persist_result(db, db_job: ReviewJobDB, payload: dict) -> None:
         """Validate the untrusted worker result and persist it atomically."""
         if not isinstance(payload, dict):
-            raise ValueError("review result must be a JSON object")
+            raise TypeError("review result must be a JSON object")
         expected = {
             "job_id": db_job.id,
             "repository": db_job.repository,
@@ -282,9 +288,9 @@ class OrchestratorService:
         findings = payload.get("findings")
         agent_runs = payload.get("agent_runs", [])
         if not isinstance(reviewer, dict) or not isinstance(summary, dict):
-            raise ValueError("review result reviewer and summary must be objects")
+            raise TypeError("review result reviewer and summary must be objects")
         if not isinstance(findings, list) or not isinstance(agent_runs, list):
-            raise ValueError("review result findings and agent_runs must be arrays")
+            raise TypeError("review result findings and agent_runs must be arrays")
         execution = payload.get("execution")
         if execution is not None:
             if not isinstance(execution, dict) or execution.get("strategy") not in {"sequential", "single_pass", "parallel", "mock"}:
@@ -305,8 +311,8 @@ class OrchestratorService:
             raise ValueError("review result summary does not match findings")
 
         try:
-            started_at = datetime.fromisoformat(str(payload["started_at"]).replace("Z", "+00:00"))
-            completed_at = datetime.fromisoformat(str(payload["completed_at"]).replace("Z", "+00:00"))
+            started_at = datetime.fromisoformat(str(payload["started_at"]))
+            completed_at = datetime.fromisoformat(str(payload["completed_at"]))
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError("review result timestamps are invalid") from exc
         duration_ms = payload.get("duration_ms")
@@ -323,7 +329,7 @@ class OrchestratorService:
         seen_agents: set[str] = set()
         for run in agent_runs:
             if not isinstance(run, dict):
-                raise ValueError("each agent run must be an object")
+                raise TypeError("each agent run must be an object")
             agent = run.get("agent")
             if agent not in valid_agents or agent in seen_agents:
                 raise ValueError("agent_runs contains an unknown or duplicate agent")
@@ -345,7 +351,7 @@ class OrchestratorService:
 
         for item in findings:
             if not isinstance(item, dict):
-                raise ValueError("each finding must be an object")
+                raise TypeError("each finding must be an object")
             if item.get("agent", "GENERAL") not in valid_agents:
                 raise ValueError("finding contains an unknown agent")
             if item.get("severity") not in valid_severities:
@@ -374,16 +380,16 @@ class OrchestratorService:
                 raise ValueError("finding suggestion must be null or at most 4000 characters")
 
         result = db.get(ReviewResultDB, db_job.id)
-        values = dict(
-            schema_version=str(payload.get("schema_version", "1.3")),
-            reviewer_name=str(reviewer.get("name", "unknown"))[:128],
-            reviewer_version=str(reviewer.get("version", "unknown"))[:32],
-            reviewer_mode=str(reviewer.get("mode", "UNKNOWN"))[:16],
-            started_at=started_at,
-            completed_at=completed_at,
-            duration_ms=duration_ms,
-            payload=payload,
-        )
+        values = {
+            "schema_version": str(payload.get("schema_version", "1.3")),
+            "reviewer_name": str(reviewer.get("name", "unknown"))[:128],
+            "reviewer_version": str(reviewer.get("version", "unknown"))[:32],
+            "reviewer_mode": str(reviewer.get("mode", "UNKNOWN"))[:16],
+            "started_at": started_at,
+            "completed_at": completed_at,
+            "duration_ms": duration_ms,
+            "payload": payload,
+        }
         if result is None:
             db.add(ReviewResultDB(job_id=db_job.id, **values))
         else:

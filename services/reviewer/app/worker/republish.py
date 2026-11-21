@@ -9,7 +9,6 @@ import argparse
 import asyncio
 import json
 import os
-import sys
 
 import httpx
 
@@ -67,7 +66,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         result = asyncio.run(_republish(args.job_id))
-    except Exception as exc:
+    except (httpx.HTTPError, RuntimeError, TypeError, ValueError) as exc:
         print(json.dumps({"published": False, "error": str(exc)[:1000]}, indent=2))
         return 1
     print(json.dumps(result, indent=2))

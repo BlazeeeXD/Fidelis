@@ -1,16 +1,16 @@
 """Main entry point for the Orchestrator service."""
 
-from contextlib import asynccontextmanager
 import asyncio
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from sqlalchemy import inspect
 
 from app.api import jobs, repositories
 from app.db import models  # noqa: F401
 from app.db.database import Base, engine
-from sqlalchemy import inspect
 from app.db.models import ReviewJobDB
 from app.services.queue_dispatch import dispatch_pending_jobs
 
@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
                 logger.exception("outbox recovery sweep failed")
             try:
                 await asyncio.wait_for(stop_event.wait(), timeout=5.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
 
     if sweep_enabled:
@@ -88,8 +88,13 @@ def metrics_summary(repository: str | None = None):
 @app.get("/metrics", include_in_schema=False)
 def prometheus_metrics():
     """Expose standard Prometheus text format without a push side channel."""
-    from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Gauge, generate_latest
     from fastapi.responses import Response
+    from prometheus_client import (
+        CONTENT_TYPE_LATEST,
+        CollectorRegistry,
+        Gauge,
+        generate_latest,
+    )
 
     registry = CollectorRegistry()
     data = jobs.orchestrator_service.summary_metrics()

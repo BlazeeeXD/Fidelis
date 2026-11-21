@@ -1,18 +1,19 @@
-from typing import Annotated
 import hmac
 import logging
 import os
+from typing import Annotated
 
-from fastapi import Header
-
-from fastapi import APIRouter, HTTPException, Query, Response, status
+from fastapi import APIRouter, Header, HTTPException, Query, Response, status
 
 from app.models.job import JobStatus, ReviewJob
 from app.schemas.job import JobCreateRequest, JobCreateResponse, JobDetailResponse
 from app.schemas.status import JobStatusUpdateRequest
+from app.services.orchestrator import (
+    InvalidJobTransitionError,
+    JobNotFoundError,
+    orchestrator_service,
+)
 from app.services.queue_dispatch import dispatch_pending_job
-from app.services.orchestrator import InvalidJobTransitionError
-from app.services.orchestrator import JobNotFoundError, orchestrator_service
 
 logger = logging.getLogger("orchestrator.api.jobs")
 
@@ -103,7 +104,7 @@ def update_job_status(
         raise HTTPException(status_code=404, detail="Job not found")
     except InvalidJobTransitionError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    except ValueError as exc:
+    except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     return _to_detail(job)
 

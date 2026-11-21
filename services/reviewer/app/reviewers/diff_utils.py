@@ -141,7 +141,7 @@ def parse_new_side_line_numbers(diff: str) -> dict[str, set[int]]:
         if raw.startswith("+"):
             line_numbers.setdefault(current_file, set()).add(new_line)
             new_line += 1
-        elif raw.startswith("-") or raw.startswith("\\"):
+        elif raw.startswith(("-", "\\")):
             continue
         else:
             line_numbers.setdefault(current_file, set()).add(new_line)
