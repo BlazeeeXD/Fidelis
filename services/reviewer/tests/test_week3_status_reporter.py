@@ -2,8 +2,11 @@ import json
 
 import httpx
 import pytest
-
-from app.worker import HttpJobStatusReporter, StatusReporterRejected, StatusReporterUnavailable
+from app.worker import (
+    HttpJobStatusReporter,
+    StatusReporterRejected,
+    StatusReporterUnavailable,
+)
 
 
 def test_http_status_reporter_sends_authenticated_start_event():

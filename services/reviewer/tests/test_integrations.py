@@ -1,7 +1,6 @@
 import asyncio
 
 import pytest
-
 from app.integrations import OpenAICompatibleClient
 from app.schemas import ErrorCode, ReviewerError
 

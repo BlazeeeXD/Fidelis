@@ -1,7 +1,6 @@
 import asyncio
 
 import pytest
-
 from app.config import Settings
 from app.reviewers.llm import LLMReviewer
 from app.schemas import (
@@ -13,7 +12,6 @@ from app.schemas import (
     ReviewRequest,
     Severity,
 )
-
 
 SAMPLE_DIFF = """diff --git a/app/auth.py b/app/auth.py
 index 1111111..2222222 100644

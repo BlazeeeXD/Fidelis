@@ -1,12 +1,6 @@
 from datetime import UTC, datetime
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
 from app.db import models  # noqa: F401
 from app.db.database import Base
 from app.db.models import ReviewJobDB, ReviewJobOutboxDB
@@ -14,6 +8,12 @@ from app.main import app
 from app.models.job import JobStatus
 from app.services.orchestrator import orchestrator_service
 from app.services.queue_dispatch import dispatch_pending_job, dispatch_pending_jobs
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, inspect
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
 
 @pytest.fixture(autouse=True)
 def configure_test_database(monkeypatch):
