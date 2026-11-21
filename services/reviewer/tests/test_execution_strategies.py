@@ -4,7 +4,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
 from app.config import Settings
 from app.reviewers.llm import LLMReviewer
 from app.schemas import (
@@ -14,7 +13,6 @@ from app.schemas import (
     ReviewerMode,
     ReviewRequest,
 )
-
 
 AGENTS = (
     ReviewAgent.STATIC_ANALYSIS,

@@ -1,6 +1,7 @@
 """Worker-to-Orchestrator job status event contract."""
 from enum import StrEnum
 from typing import Any, Self
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
