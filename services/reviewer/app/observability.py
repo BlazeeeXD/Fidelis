@@ -37,9 +37,6 @@ def generation_observation(*, name: str, model: str, metadata: dict[str, Any] | 
     try:
         with observation_context as span:
             yield span
-    except Exception:
-        # Let the review pipeline handle its own operational errors.
-        raise
     finally:
         try:
             client.flush()

@@ -9,7 +9,6 @@ JSON mode, and the top-level findings[] contract before any GitHub review runs.
 from __future__ import annotations
 
 import asyncio
-import sys
 import time
 from urllib.parse import urlparse
 

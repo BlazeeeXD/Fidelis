@@ -1,12 +1,11 @@
+from unittest.mock import MagicMock
+
 import pytest
 
 celery = pytest.importorskip("celery")
 
-from unittest.mock import MagicMock
-
-from app.worker import ExecutionDisposition, ExecutionOutcome, JobStatus
+from app.worker import ExecutionDisposition, ExecutionOutcome, JobStatus, tasks
 from app.worker.celery_app import celery_app
-from app.worker import tasks
 
 
 def request_payload():

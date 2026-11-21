@@ -8,8 +8,8 @@ webhook redelivery can safely try again.
 
 import logging
 import os
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Callable
 
 from sqlalchemy import select
 

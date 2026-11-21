@@ -1,20 +1,19 @@
 """Celery task adapter around the review-service's tested ReviewWorker."""
 
+import asyncio
 import logging
 import os
 
-from app.schemas import ReviewRequest
 from app.github_reviews import GitHubReviewPublisher
-from app.schemas import ReviewResult
-import asyncio
+from app.schemas import ReviewRequest
 from app.worker.celery_app import celery_app
 from app.worker.clients import HttpReviewerClient
+from app.worker.interface import ExecutionDisposition
 from app.worker.reporters import (
     HttpJobStatusReporter,
     StatusReporterUnavailable,
 )
 from app.worker.runner import ReviewWorker
-from app.worker.interface import ExecutionDisposition
 
 logger = logging.getLogger("reviewer.worker.celery")
 
@@ -52,73 +51,77 @@ def run_review(
     if not WORKER_STATUS_TOKEN:
         raise RuntimeError("WORKER_STATUS_TOKEN is not configured for the worker")
 
-    with HttpReviewerClient(REVIEWER_URL, timeout=REVIEWER_TIMEOUT_SECONDS) as reviewer:
-        with HttpJobStatusReporter(ORCHESTRATOR_URL, token=WORKER_STATUS_TOKEN) as reporter:
-            worker = ReviewWorker(
-                reviewer,
-                reporter,
-                max_attempts=MAX_REVIEW_ATTEMPTS,
-            )
-            try:
-                outcome = worker.execute(request, attempt=review_attempt)
-                if (
-                    outcome.disposition is ExecutionDisposition.SUCCEEDED
-                    and outcome.result is not None
-                    and PUBLISH_GITHUB_REVIEWS
-                ):
-                    try:
-                        delivery = asyncio.run(
-                            GitHubReviewPublisher(GITHUB_TOKEN, api_url=GITHUB_API_URL).publish(
-                                request, outcome.result
-                            )
+    with (
+        HttpReviewerClient(REVIEWER_URL, timeout=REVIEWER_TIMEOUT_SECONDS) as reviewer,
+        HttpJobStatusReporter(ORCHESTRATOR_URL, token=WORKER_STATUS_TOKEN) as reporter,
+    ):
+        worker = ReviewWorker(
+            reviewer,
+            reporter,
+            max_attempts=MAX_REVIEW_ATTEMPTS,
+        )
+        try:
+            outcome = worker.execute(request, attempt=review_attempt)
+            if (
+                outcome.disposition is ExecutionDisposition.SUCCEEDED
+                and outcome.result is not None
+                and PUBLISH_GITHUB_REVIEWS
+            ):
+                try:
+                    delivery = asyncio.run(
+                        GitHubReviewPublisher(GITHUB_TOKEN, api_url=GITHUB_API_URL).publish(
+                            request, outcome.result
                         )
-                        logger.info("job %s GitHub delivery: %s", request.job_id, delivery)
-                        reporter.record_delivery(
-                            request.job_id,
-                            status="published" if delivery.get("published") else "skipped",
-                            message=str(delivery.get("reason", "")),
-                            metadata={"comment_id": delivery.get("comment_id"), "html_url": delivery.get("html_url"), "comment_url": delivery.get("comment_url"), "action": delivery.get("action"), "inline_comments": 0},
-                        )
-                    except Exception as exc:
-                        # A GitHub comment outage must not erase a successfully
-                        # completed and durably stored code review.
-                        logger.exception("job %s: GitHub review delivery failed", request.job_id)
-                        try:
-                            reporter.record_delivery(request.job_id, status="failed", message=str(exc)[:500])
-                        except Exception:
-                            logger.exception("job %s: could not record GitHub delivery failure", request.job_id)
-            except StatusReporterUnavailable as exc:
-                if infrastructure_attempt >= INFRASTRUCTURE_RETRY_LIMIT:
-                    logger.exception(
-                        "job %s: status reporting still unavailable after %s retries",
-                        request.job_id,
-                        infrastructure_attempt,
                     )
-                    raise
-                delay = min(30, 2 ** infrastructure_attempt)
-                logger.warning(
-                    "job %s: retrying status report in %ss (%s/%s)",
+                    logger.info("job %s GitHub delivery: %s", request.job_id, delivery)
+                    reporter.record_delivery(
+                        request.job_id,
+                        status="published" if delivery.get("published") else "skipped",
+                        message=str(delivery.get("reason", "")),
+                        metadata={"comment_id": delivery.get("comment_id"), "html_url": delivery.get("html_url"), "comment_url": delivery.get("comment_url"), "action": delivery.get("action"), "inline_comments": 0},
+                    )
+                except Exception as exc:
+                    # A GitHub comment outage must not erase a successfully
+                    # completed and durably stored code review.
+                    logger.exception("job %s: GitHub review delivery failed", request.job_id)
+                    try:
+                        reporter.record_delivery(request.job_id, status="failed", message=str(exc)[:500])
+                    except Exception:
+                        logger.exception("job %s: could not record GitHub delivery failure", request.job_id)
+        except StatusReporterUnavailable as exc:
+            if infrastructure_attempt >= INFRASTRUCTURE_RETRY_LIMIT:
+                logger.exception(
+                    "job %s: status reporting still unavailable after %s retries",
                     request.job_id,
-                    delay,
-                    infrastructure_attempt + 1,
-                    INFRASTRUCTURE_RETRY_LIMIT,
+                    infrastructure_attempt,
                 )
-                raise self.retry(
-                    exc=exc,
-                    countdown=delay,
-                    kwargs={
-                        "request_payload": request_payload,
-                        "review_attempt": review_attempt,
-                        "infrastructure_attempt": infrastructure_attempt + 1,
-                    },
-                )
+                raise
+            delay = min(30, 2 ** infrastructure_attempt)
+            logger.warning(
+                "job %s: retrying status report in %ss (%s/%s)",
+                request.job_id,
+                delay,
+                infrastructure_attempt + 1,
+                INFRASTRUCTURE_RETRY_LIMIT,
+            )
+            raise self.retry(
+                exc=exc,
+                countdown=delay,
+                kwargs={
+                    "request_payload": request_payload,
+                    "review_attempt": review_attempt,
+                    "infrastructure_attempt": infrastructure_attempt + 1,
+                },
+            )
 
     if outcome.disposition is ExecutionDisposition.RETRY:
         # ReviewWorker already moved RUNNING -> QUEUED and selected the
         # exponential-backoff delay. Celery republishes the task for attempt+1.
         logger.warning(
             "job %s: reviewer requested retry after attempt %s/%s in %.1fs",
-            outcome.job_id, outcome.attempt, outcome.max_attempts,
+            outcome.job_id,
+            outcome.attempt,
+            outcome.max_attempts,
             outcome.retry_after_seconds or 0.0,
         )
         raise self.retry(

@@ -1,5 +1,7 @@
 """Celery app for repository-learning jobs."""
+
 import os
+
 from celery import Celery
 
 celery_app = Celery(

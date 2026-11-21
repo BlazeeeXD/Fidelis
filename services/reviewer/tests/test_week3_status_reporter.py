@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import pytest
 
@@ -17,7 +19,7 @@ def test_http_status_reporter_sends_authenticated_start_event():
     req = seen[0]
     assert req.url.path == "/jobs/job-week3-1/status"
     assert req.headers["X-Worker-Token"] == "secret"
-    assert req.read() == b'{"event":"started","attempt":2}'
+    assert json.loads(req.read()) == {"event": "started", "attempt": 2}
     inner.close()
 
 

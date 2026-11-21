@@ -28,9 +28,9 @@ from app.schemas import (
     ErrorCode,
     Finding,
     ReviewAgent,
-    ReviewExecution,
     ReviewerError,
     ReviewerMode,
+    ReviewExecution,
     ReviewRequest,
     Severity,
 )
@@ -400,7 +400,7 @@ class LLMReviewer(Reviewer):
         if not isinstance(raw_findings, list):
             # JSON mode guarantees JSON syntax only, not this application's schema.
             # Report the actual top-level keys so local-model contract failures are diagnosable.
-            top_level_keys = sorted(str(key) for key in response.keys()) if isinstance(response, dict) else []
+            top_level_keys = sorted(str(key) for key in response) if isinstance(response, dict) else []
             logger.warning(
                 "agent=%s returned JSON without required findings[]; top_level_keys=%s",
                 agent.value, top_level_keys,

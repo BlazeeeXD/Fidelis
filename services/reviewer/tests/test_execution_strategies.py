@@ -7,7 +7,13 @@ import pytest
 
 from app.config import Settings
 from app.reviewers.llm import LLMReviewer
-from app.schemas import ErrorCode, ReviewAgent, ReviewerError, ReviewRequest, ReviewerMode
+from app.schemas import (
+    ErrorCode,
+    ReviewAgent,
+    ReviewerError,
+    ReviewerMode,
+    ReviewRequest,
+)
 
 
 AGENTS = (

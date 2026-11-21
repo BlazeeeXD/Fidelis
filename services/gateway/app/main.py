@@ -13,6 +13,7 @@ import json
 import os
 import uuid
 from pathlib import Path
+from typing import Annotated
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
@@ -195,7 +196,9 @@ def _require_development_demo() -> None:
 
 
 @app.api_route("/api/learner/{path:path}", methods=["GET", "POST"])
-async def route_to_learner(path: str, request: Request, _claims: dict = Depends(require_auth)):
+async def route_to_learner(
+    path: str, request: Request, _claims: Annotated[dict, Depends(require_auth)]
+):
     """Authenticated gateway to the learner; inject the internal service token."""
     return await _proxy(
         request,

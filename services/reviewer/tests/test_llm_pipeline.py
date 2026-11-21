@@ -1,9 +1,18 @@
 import asyncio
+
 import pytest
 
 from app.config import Settings
 from app.reviewers.llm import LLMReviewer
-from app.schemas import Category, ErrorCode, ReviewAgent, ReviewerError, ReviewRequest, ReviewerMode, Severity
+from app.schemas import (
+    Category,
+    ErrorCode,
+    ReviewAgent,
+    ReviewerError,
+    ReviewerMode,
+    ReviewRequest,
+    Severity,
+)
 
 
 SAMPLE_DIFF = """diff --git a/app/auth.py b/app/auth.py
@@ -270,7 +279,6 @@ index 1111111..2222222 100644
     from app.reviewers.diff_utils import parse_added_lines
 
     findings = reviewer._static_signal_findings(parse_added_lines(diff), diff)
-    rendered = "\n".join(item.message.lower() for item in findings)
     assert any("sql" in item.message.lower() and "injection" in item.message.lower() for item in findings)
     assert any("os.system" in item.message.lower() for item in findings)
     assert any("traversal" in item.message.lower() for item in findings)
